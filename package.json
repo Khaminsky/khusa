@@ -2,18 +2,30 @@
   "name": "khusa",
   "version": "0.0.1",
   "private": true,
+  "main": "expo-router/entry",
   "scripts": {
-    "android": "react-native run-android",
-    "ios": "react-native run-ios",
-    "lint": "eslint .",
-    "start": "react-native start",
-    "test": "jest"
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "lint": "eslint ."
   },
   "dependencies": {
+    "@react-native/new-app-screen": "0.84.1",
+    "expo": "^55.0.9",
+    "expo-constants": "^55.0.9",
+    "expo-linking": "^55.0.9",
+    "expo-router": "^55.0.8",
+    "expo-splash-screen": "^55.0.13",
+    "expo-sqlite": "^55.0.11",
+    "expo-status-bar": "^55.0.4",
     "react": "19.2.3",
     "react-native": "0.84.1",
-    "@react-native/new-app-screen": "0.84.1",
-    "react-native-safe-area-context": "^5.5.2"
+    "react-native-gesture-handler": "^2.31.0",
+    "react-native-reanimated": "^4.3.0",
+    "react-native-safe-area-context": "^5.5.2",
+    "react-native-screens": "^4.24.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
