@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -8,29 +8,70 @@ import {
   Modal,
   FlatList,
   Pressable,
+  Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { Accelerometer } from 'expo-sensors';
 import { useAccountStore } from '@/stores/useAccountStore';
+import { useTransactionStore } from '@/stores/useTransactionStore';
 import { formatAmount } from '@/constants/currencies';
 import { colors, fontSize, fontWeight, spacing, radius } from '@/constants/tokens';
 import type { Account } from '@/types';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-const ACCOUNT_TYPE_ICONS: Record<Account['type'], string> = {
-  cash: '💵',
-  bank: '🏦',
-  mobile_money: '📱',
-  credit: '💳',
-};
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SHAKE_THRESHOLD = 1.8;
+const SHAKE_COOLDOWN_MS = 2000;
 
 export default function HomeScreen() {
   const accounts = useAccountStore(s => s.accounts);
   const activeAccountId = useAccountStore(s => s.activeAccountId);
   const updateLastUsed = useAccountStore(s => s.updateLastUsed);
+  const loadAccounts = useAccountStore(s => s.loadAccounts);
+  const undoLastTransaction = useTransactionStore(s => s.undoLastTransaction);
+  const undoStack = useTransactionStore(s => s.undoStack);
   const activeAccount = accounts.find(a => a.id === activeAccountId) ?? null;
 
   const [switcherVisible, setSwitcherVisible] = useState(false);
+  const lastShakeRef = useRef(0);
+
+  // Shake-to-undo
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(100);
+    const subscription = Accelerometer.addListener(({ x, y, z }) => {
+      const magnitude = Math.sqrt(x * x + y * y + z * z);
+      const now = Date.now();
+      if (magnitude > SHAKE_THRESHOLD && now - lastShakeRef.current > SHAKE_COOLDOWN_MS) {
+        lastShakeRef.current = now;
+        handleShakeUndo();
+      }
+    });
+    return () => subscription.remove();
+  }, [undoStack.length]);
+
+  function handleShakeUndo() {
+    if (undoStack.length === 0) return;
+    const last = undoStack[undoStack.length - 1];
+    const acc = accounts.find(a => a.id === last.accountId);
+
+    Alert.alert(
+      'Undo Transaction',
+      `Undo "${last.description}" (${formatAmount(last.amount, last.currency)})?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Undo',
+          style: 'destructive',
+          onPress: async () => {
+            await undoLastTransaction(acc?.type);
+            await loadAccounts(); // refresh balances
+          },
+        },
+      ]
+    );
+  }
 
   const balanceColor =
     activeAccount?.type === 'credit' && activeAccount.balance > 0
@@ -61,11 +102,15 @@ export default function HomeScreen() {
         {activeAccount ? (
           <>
             <View style={styles.headerRow}>
-              <Text style={styles.accountName}>
-                {ACCOUNT_TYPE_ICONS[activeAccount.type]} {activeAccount.name}
-              </Text>
+              <Ionicons
+                name={activeAccount.icon as IoniconsName}
+                size={16}
+                color={colors.textSecondary}
+                style={styles.accountTypeIcon}
+              />
+              <Text style={styles.accountName}>{activeAccount.name}</Text>
               {accounts.length > 1 && (
-                <Text style={styles.chevron}>⌄</Text>
+                <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
               )}
             </View>
             <Text style={[styles.balance, { color: balanceColor }]}>
@@ -108,7 +153,7 @@ export default function HomeScreen() {
             <Text style={styles.switcherTitle}>Switch Account</Text>
             <FlatList
               data={accounts}
-              keyExtractor={a => a.id}
+              keyExtractor={(a: Account) => a.id}
               renderItem={({ item }) => {
                 const isActive = item.id === activeAccountId;
                 const itemBalanceColor =
@@ -120,14 +165,21 @@ export default function HomeScreen() {
                     style={[styles.switcherRow, isActive && styles.switcherRowActive]}
                     onPress={() => selectAccount(item.id)}
                   >
-                    <Text style={styles.switcherIcon}>{ACCOUNT_TYPE_ICONS[item.type]}</Text>
+                    <Ionicons
+                      name={item.icon as IoniconsName}
+                      size={20}
+                      color={colors.textSecondary}
+                      style={styles.switcherIcon}
+                    />
                     <View style={styles.switcherInfo}>
                       <Text style={styles.switcherName}>{item.name}</Text>
                       <Text style={[styles.switcherBalance, { color: itemBalanceColor }]}>
                         {formatAmount(item.balance, item.currency)}
                       </Text>
                     </View>
-                    {isActive && <Text style={styles.checkmark}>✓</Text>}
+                    {isActive && (
+                      <Ionicons name="checkmark" size={18} color={colors.credit} />
+                    )}
                   </TouchableOpacity>
                 );
               }}
@@ -158,15 +210,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
+  accountTypeIcon: {
+    marginRight: 2,
+  },
   accountName: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     fontWeight: fontWeight.medium,
-  },
-  chevron: {
-    fontSize: fontSize.md,
-    color: colors.textMuted,
-    lineHeight: fontSize.md * 1.2,
   },
   balance: {
     fontSize: fontSize.xl,
@@ -230,8 +280,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
   },
   switcherIcon: {
-    fontSize: 22,
-    width: 32,
+    width: 28,
     textAlign: 'center',
   },
   switcherInfo: {
@@ -246,10 +295,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     marginTop: 2,
-  },
-  checkmark: {
-    fontSize: fontSize.md,
-    color: colors.credit,
-    fontWeight: fontWeight.bold,
   },
 });

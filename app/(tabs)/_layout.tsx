@@ -1,10 +1,17 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, fontSize } from '@/constants/tokens';
 
-function TabIcon({ emoji, label, focused }: { emoji: string; label: string; focused: boolean }) {
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabIcon({ name, focused }: { name: IoniconsName; focused: boolean }) {
   return (
-    <Text style={[styles.tabIcon, { opacity: focused ? 1 : 0.4 }]}>{emoji}</Text>
+    <Ionicons
+      name={name}
+      size={22}
+      color={focused ? colors.textPrimary : colors.textMuted}
+    />
   );
 }
 
@@ -23,28 +30,28 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚡" label="Home" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📋" label="History" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'time' : 'time-outline'} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="accounts"
         options={{
           title: 'Accounts',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="💳" label="Accounts" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'wallet' : 'wallet-outline'} focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="⚙️" label="Settings" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} />,
         }}
       />
     </Tabs>
@@ -59,8 +66,5 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: fontSize.xs,
-  },
-  tabIcon: {
-    fontSize: 20,
   },
 });

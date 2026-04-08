@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as Crypto from 'expo-crypto';
 import type { Transaction } from '@/types';
 import { getDb } from '@/services/Database';
 
@@ -53,7 +54,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
   addTransaction: async (txData, accountType) => {
     const db = getDb();
-    const id = crypto.randomUUID();
+    const id = Crypto.randomUUID();
     const now = new Date().toISOString();
 
     await db.runAsync(

@@ -10,17 +10,21 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAccountStore } from '@/stores/useAccountStore';
 import { CURRENCIES, DEFAULT_CURRENCY } from '@/constants/currencies';
+import { ACCOUNT_TYPE_ICONS } from '@/constants/icons';
 import { colors, fontSize, fontWeight, spacing, radius } from '@/constants/tokens';
 import type { AccountType } from '@/types';
 
-const ACCOUNT_TYPES: { type: AccountType; label: string; icon: string; description: string }[] = [
-  { type: 'cash',         label: 'Cash',         icon: '💵', description: 'Physical money in hand' },
-  { type: 'bank',         label: 'Bank',          icon: '🏦', description: 'Bank account or savings' },
-  { type: 'mobile_money', label: 'Mobile Money',  icon: '📱', description: 'Airtel Money, TNM Mpamba, etc.' },
-  { type: 'credit',       label: 'Credit',        icon: '💳', description: 'Credit card or line of credit' },
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const ACCOUNT_TYPES: { type: AccountType; label: string; icon: IoniconsName; description: string }[] = [
+  { type: 'cash',         label: 'Cash',         icon: 'wallet-outline',          description: 'Physical money in hand' },
+  { type: 'bank',         label: 'Bank',          icon: 'business-outline',        description: 'Bank account or savings' },
+  { type: 'mobile_money', label: 'Mobile Money',  icon: 'phone-portrait-outline',  description: 'Airtel Money, TNM Mpamba, etc.' },
+  { type: 'credit',       label: 'Credit',        icon: 'card-outline',            description: 'Credit card or line of credit' },
 ];
 
 const PRESET_COLORS = [
@@ -37,14 +41,10 @@ export default function AddAccountModal() {
   const [name, setName] = useState('');
   const [selectedType, setSelectedType] = useState<AccountType>('cash');
   const [selectedCurrency, setSelectedCurrency] = useState(DEFAULT_CURRENCY);
-  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[5]); // blue default
+  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[5]);
   const [submitting, setSubmitting] = useState(false);
 
   const typeConfig = ACCOUNT_TYPES.find(t => t.type === selectedType)!;
-
-  function applyNameSuggestion(suggestion: string) {
-    setName(suggestion);
-  }
 
   async function handleSubmit() {
     const trimmed = name.trim();
@@ -60,7 +60,7 @@ export default function AddAccountModal() {
         type: selectedType,
         currency: selectedCurrency,
         color: selectedColor,
-        icon: typeConfig.icon,
+        icon: ACCOUNT_TYPE_ICONS[selectedType],
       });
       router.back();
     } catch {
@@ -84,24 +84,31 @@ export default function AddAccountModal() {
           {/* Account Type */}
           <Text style={styles.label}>Type</Text>
           <View style={styles.typeGrid}>
-            {ACCOUNT_TYPES.map(t => (
-              <TouchableOpacity
-                key={t.type}
-                style={[styles.typeCard, selectedType === t.type && styles.typeCardActive]}
-                onPress={() => {
-                  setSelectedType(t.type);
-                  if (t.type === 'credit') setSelectedColor('#ef4444');
-                  else if (t.type === 'mobile_money') setSelectedColor('#22c55e');
-                  else if (t.type === 'bank') setSelectedColor('#3b82f6');
-                  else setSelectedColor('#eab308');
-                }}
-              >
-                <Text style={styles.typeIcon}>{t.icon}</Text>
-                <Text style={[styles.typeLabel, selectedType === t.type && styles.typeLabelActive]}>
-                  {t.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {ACCOUNT_TYPES.map(t => {
+              const isActive = selectedType === t.type;
+              return (
+                <TouchableOpacity
+                  key={t.type}
+                  style={[styles.typeCard, isActive && styles.typeCardActive]}
+                  onPress={() => {
+                    setSelectedType(t.type);
+                    if (t.type === 'credit') setSelectedColor('#ef4444');
+                    else if (t.type === 'mobile_money') setSelectedColor('#22c55e');
+                    else if (t.type === 'bank') setSelectedColor('#3b82f6');
+                    else setSelectedColor('#eab308');
+                  }}
+                >
+                  <Ionicons
+                    name={t.icon}
+                    size={22}
+                    color={isActive ? colors.textPrimary : colors.textMuted}
+                  />
+                  <Text style={[styles.typeLabel, isActive && styles.typeLabelActive]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <Text style={styles.typeDescription}>{typeConfig.description}</Text>
 
@@ -111,7 +118,12 @@ export default function AddAccountModal() {
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder={`e.g. ${selectedType === 'mobile_money' ? 'Airtel Money' : selectedType === 'bank' ? 'NBS Account' : selectedType === 'credit' ? 'Visa Card' : 'Wallet'}`}
+            placeholder={
+              selectedType === 'mobile_money' ? 'e.g. Airtel Money'
+              : selectedType === 'bank' ? 'e.g. NBS Account'
+              : selectedType === 'credit' ? 'e.g. Visa Card'
+              : 'e.g. Wallet'
+            }
             placeholderTextColor={colors.textMuted}
             autoCapitalize="words"
             selectionColor={selectedColor}
@@ -122,7 +134,7 @@ export default function AddAccountModal() {
                 <TouchableOpacity
                   key={s}
                   style={styles.suggestion}
-                  onPress={() => applyNameSuggestion(s)}
+                  onPress={() => setName(s)}
                 >
                   <Text style={styles.suggestionText}>{s}</Text>
                 </TouchableOpacity>
@@ -242,10 +254,6 @@ const styles = StyleSheet.create({
   },
   typeCardActive: {
     borderColor: colors.textPrimary,
-    backgroundColor: colors.surfaceElevated,
-  },
-  typeIcon: {
-    fontSize: 22,
   },
   typeLabel: {
     fontSize: fontSize.xs,

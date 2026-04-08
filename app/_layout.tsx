@@ -6,17 +6,18 @@ import { StyleSheet } from 'react-native';
 import { initDatabase } from '@/services/Database';
 import { useAccountStore } from '@/stores/useAccountStore';
 import { useCurrencyStore } from '@/stores/useCurrencyStore';
+import { useCategoryStore } from '@/stores/useCategoryStore';
 import { colors } from '@/constants/tokens';
 
 export default function RootLayout() {
   const loadAccounts = useAccountStore(s => s.loadAccounts);
   const loadDefaultCurrency = useCurrencyStore(s => s.loadDefaultCurrency);
+  const loadCategories = useCategoryStore(s => s.loadCategories);
 
   useEffect(() => {
     (async () => {
       await initDatabase();
-      await loadAccounts();
-      await loadDefaultCurrency();
+      await Promise.all([loadAccounts(), loadDefaultCurrency(), loadCategories()]);
     })();
   }, []);
 
@@ -31,6 +32,10 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="modals/add-account"
+          options={{ presentation: 'modal', headerShown: false }}
+        />
+        <Stack.Screen
+          name="modals/category"
           options={{ presentation: 'modal', headerShown: false }}
         />
         <Stack.Screen

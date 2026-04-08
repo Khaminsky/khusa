@@ -1,16 +1,12 @@
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ListRenderItem } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAccountStore } from '@/stores/useAccountStore';
 import { formatAmount } from '@/constants/currencies';
 import { colors, fontSize, fontWeight, spacing, radius } from '@/constants/tokens';
 import type { Account } from '@/types';
 
-const ACCOUNT_TYPE_ICONS: Record<Account['type'], string> = {
-  cash: '💵',
-  bank: '🏦',
-  mobile_money: '📱',
-  credit: '💳',
-};
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const ACCOUNT_TYPE_LABELS: Record<Account['type'], string> = {
   cash: 'Cash',
@@ -33,7 +29,7 @@ export default function AccountsScreen() {
         activeOpacity={0.7}
       >
         <View style={[styles.iconBadge, { backgroundColor: item.color + '22', borderColor: item.color + '55' }]}>
-          <Text style={styles.accountIcon}>{ACCOUNT_TYPE_ICONS[item.type]}</Text>
+          <Ionicons name={item.icon as IoniconsName} size={20} color={item.color} />
         </View>
         <View style={styles.accountInfo}>
           <Text style={styles.accountName}>{item.name}</Text>
@@ -47,7 +43,7 @@ export default function AccountsScreen() {
             <Text style={styles.outstandingLabel}>outstanding</Text>
           )}
         </View>
-        <Text style={styles.chevron}>›</Text>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       </TouchableOpacity>
     );
   };
@@ -71,7 +67,7 @@ export default function AccountsScreen() {
         renderItem={renderAccount}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>💳</Text>
+            <Ionicons name="wallet-outline" size={48} color={colors.textMuted} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>No accounts yet</Text>
             <Text style={styles.emptySubtitle}>Add an account to start tracking</Text>
             <TouchableOpacity
@@ -162,9 +158,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  accountIcon: {
-    fontSize: 22,
-  },
   accountInfo: {
     flex: 1,
   },
@@ -190,17 +183,12 @@ const styles = StyleSheet.create({
     color: colors.creditOutstanding,
     marginTop: 2,
   },
-  chevron: {
-    fontSize: fontSize.xl,
-    color: colors.textMuted,
-  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: spacing.xxl,
     paddingHorizontal: spacing.xl,
   },
   emptyIcon: {
-    fontSize: 48,
     marginBottom: spacing.md,
   },
   emptyTitle: {

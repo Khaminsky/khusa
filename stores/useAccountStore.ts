@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as Crypto from 'expo-crypto';
 import type { Account } from '@/types';
 import { getDb } from '@/services/Database';
 
@@ -47,7 +48,7 @@ export const useAccountStore = create<AccountState>((set, get) => ({
 
   addAccount: async (data) => {
     const db = getDb();
-    const id = crypto.randomUUID();
+    const id = Crypto.randomUUID();
     const now = new Date().toISOString();
 
     await db.runAsync(

@@ -20,17 +20,18 @@ A personal expense tracking and budgeting mobile application built with Expo + R
 
 ## Tech Stack
 
-| Concern | Choice |
-|---|---|
-| Framework | Expo (managed workflow) + React Native |
-| Language | TypeScript (strict mode) |
-| Local Storage | SQLite via `expo-sqlite` |
+| Concern | Choice                                            |
+|---|---------------------------------------------------|
+| Framework | Expo (managed workflow) + React Native            |
+| Language | TypeScript (strict mode)                          |
+| Local Storage | SQLite via `expo-sqlite`                          |
 | Receipt OCR | Google ML Kit (decoupled behind service interface) |
-| Exchange Rates | Frankfurter API (free, no API key required) |
-| Navigation | Expo Router (file-based routing) |
-| Build / iOS | EAS Build |
-| State Management | Zustand (lightweight, no boilerplate) |
-| Styling | StyleSheet API + consistent design tokens |
+| Exchange Rates | Frankfurter API (free, no API key required)       |
+| Navigation | Expo Router (file-based routing)                  |
+| Build / iOS | EAS Build                                         |
+| State Management | Zustand (lightweight, no boilerplate)             |
+| Styling | StyleSheet API + consistent design tokens         |
+| Icons | `@expo/vector-icons` — Ionicons set exclusively    |
 
 ---
 
@@ -374,6 +375,7 @@ Request permissions lazily — location on first transaction submission, camera 
 - No `any` types — use `unknown` and narrow properly
 - Database access only through `services/Database.ts` — no raw SQL in components or stores
 - Components are presentational — all business logic lives in stores or services
+- **No emoji icons in UI** — use `Ionicons` from `@expo/vector-icons` exclusively. Icon names are stored as plain strings in the database (`account.icon`, `category.icon`). Cast to `React.ComponentProps<typeof Ionicons>['name']` when passing to the component. New icon options for category/account pickers live in `constants/icons.ts`.
 
 ---
 

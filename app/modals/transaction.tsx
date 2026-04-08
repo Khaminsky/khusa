@@ -10,11 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useTransactionStore } from '@/stores/useTransactionStore';
 import { useAccountStore } from '@/stores/useAccountStore';
-import { getDb } from '@/services/Database';
-import type { Category, TransactionType } from '@/types';
+import { useCategoryStore } from '@/stores/useCategoryStore';
+import { captureLocation } from '@/services/Location';
+import type { TransactionType } from '@/types';
+
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 import { colors, fontSize, fontWeight, spacing, radius } from '@/constants/tokens';
 
 export default function TransactionModal() {
@@ -26,37 +30,26 @@ export default function TransactionModal() {
   const updateLastUsed = useAccountStore(s => s.updateLastUsed);
   const addTransaction = useTransactionStore(s => s.addTransaction);
   const lastUsedCategoryId = useTransactionStore(s => s.lastUsedCategoryId);
+  const categories = useCategoryStore(s => s.categories);
+
+  const defaultCategoryId = lastUsedCategoryId && categories.find(c => c.id === lastUsedCategoryId)
+    ? lastUsedCategoryId
+    : categories[0]?.id ?? '';
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>(activeAccountId ?? '');
   const [amountText, setAmountText] = useState('');
   const [description, setDescription] = useState('');
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(defaultCategoryId);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const db = getDb();
-      const rows = await db.getAllAsync<Record<string, unknown>>(
-        'SELECT * FROM categories ORDER BY name ASC'
-      );
-      const cats: Category[] = rows.map(r => ({
-        id: r.id as string,
-        name: r.name as string,
-        icon: r.icon as string,
-        color: r.color as string,
-        isDefault: (r.is_default as number) === 1,
-        budgetLimit: r.budget_limit as number | undefined,
-        budgetCurrency: r.budget_currency as string | undefined,
-      }));
-      setCategories(cats);
-      // Smart default: last used category, else first alphabetically
-      const defaultCat = lastUsedCategoryId && cats.find(c => c.id === lastUsedCategoryId)
+    if (!selectedCategoryId && categories.length > 0) {
+      const fallback = lastUsedCategoryId && categories.find(c => c.id === lastUsedCategoryId)
         ? lastUsedCategoryId
-        : cats[0]?.id ?? '';
-      setSelectedCategoryId(defaultCat);
-    })();
-  }, []);
+        : categories[0].id;
+      setSelectedCategoryId(fallback);
+    }
+  }, [categories.length]);
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
 
@@ -85,6 +78,9 @@ export default function TransactionModal() {
       const subunit = 100; // all supported currencies use 100 subunits
       const amountInSmallestUnit = Math.round(parsedAmount * subunit);
 
+      // Silently capture location (non-blocking if denied)
+      const location = await captureLocation();
+
       await addTransaction(
         {
           accountId: selectedAccountId,
@@ -93,6 +89,8 @@ export default function TransactionModal() {
           currency,
           description: description.trim(),
           categoryId: selectedCategoryId,
+          latitude: location?.latitude,
+          longitude: location?.longitude,
         },
         selectedAccount?.type
       );
@@ -182,7 +180,11 @@ export default function TransactionModal() {
                 ]}
                 onPress={() => setSelectedCategoryId(cat.id)}
               >
-                <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                <Ionicons
+                  name={cat.icon as IoniconsName}
+                  size={16}
+                  color={selectedCategoryId === cat.id ? cat.color : colors.textSecondary}
+                />
                 <Text style={[
                   styles.categoryLabel,
                   selectedCategoryId === cat.id && { color: cat.color },
@@ -300,9 +302,6 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  categoryIcon: {
-    fontSize: fontSize.md,
   },
   categoryLabel: {
     fontSize: fontSize.xs,

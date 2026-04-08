@@ -1,6 +1,8 @@
 import * as SQLite from 'expo-sqlite';
+import * as Crypto from 'expo-crypto';
 import { DEFAULT_CATEGORIES } from '@/constants/categories';
 import { DEFAULT_CURRENCY } from '@/constants/currencies';
+import { EMOJI_TO_IONICONS, ACCOUNT_TYPE_ICONS } from '@/constants/icons';
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -82,6 +84,29 @@ export async function initDatabase(): Promise<void> {
   `);
 
   await seedInitialData();
+  await migrateIcons();
+}
+
+async function migrateIcons(): Promise<void> {
+  const database = getDb();
+  const done = await database.getFirstAsync<{ value: string }>(
+    "SELECT value FROM settings WHERE key = 'v2_icon_migration'"
+  );
+  if (done) return;
+
+  // Migrate category icons from emoji to Ionicons names
+  for (const [emoji, name] of Object.entries(EMOJI_TO_IONICONS)) {
+    await database.runAsync('UPDATE categories SET icon = ? WHERE icon = ?', [name, emoji]);
+  }
+
+  // Migrate account icons from emoji to Ionicons names based on type
+  for (const [type, icon] of Object.entries(ACCOUNT_TYPE_ICONS)) {
+    await database.runAsync('UPDATE accounts SET icon = ? WHERE type = ?', [icon, type]);
+  }
+
+  await database.runAsync(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES ('v2_icon_migration', 'done')"
+  );
 }
 
 async function seedInitialData(): Promise<void> {
@@ -95,7 +120,7 @@ async function seedInitialData(): Promise<void> {
 
   // Seed categories
   for (const cat of DEFAULT_CATEGORIES) {
-    const id = crypto.randomUUID();
+    const id = Crypto.randomUUID();
     await database.runAsync(
       `INSERT INTO categories (id, name, icon, color, is_default) VALUES (?, ?, ?, ?, ?)`,
       [id, cat.name, cat.icon, cat.color, cat.isDefault ? 1 : 0]

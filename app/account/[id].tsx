@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,19 +8,22 @@ import {
   Alert,
   ListRenderItem,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAccountStore } from '@/stores/useAccountStore';
 import { useTransactionStore } from '@/stores/useTransactionStore';
-import { getDb } from '@/services/Database';
+import { useCategoryStore } from '@/stores/useCategoryStore';
 import { formatAmount } from '@/constants/currencies';
 import { colors, fontSize, fontWeight, spacing, radius } from '@/constants/tokens';
-import type { Transaction, Category, Account } from '@/types';
+import type { Transaction, Account } from '@/types';
 
-const ACCOUNT_TYPE_ICONS: Record<Account['type'], string> = {
-  cash: '💵',
-  bank: '🏦',
-  mobile_money: '📱',
-  credit: '💳',
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const ACCOUNT_TYPE_LABELS: Record<Account['type'], string> = {
+  cash: 'Cash',
+  bank: 'Bank',
+  mobile_money: 'Mobile Money',
+  credit: 'Credit',
 };
 
 function formatDate(iso: string): string {
@@ -48,33 +51,14 @@ export default function AccountDetailScreen() {
   const archiveAccount = useAccountStore(s => s.archiveAccount);
   const loadTransactions = useTransactionStore(s => s.loadTransactions);
   const transactions = useTransactionStore(s => s.transactions);
+  const categoryList = useCategoryStore(s => s.categories);
 
-  const [categoryMap, setCategoryMap] = useState<Map<string, Category>>(new Map());
-
+  const categoryMap = new Map(categoryList.map(c => [c.id, c]));
   const account = accounts.find(a => a.id === id) ?? null;
 
   useEffect(() => {
     if (!id) return;
     loadTransactions(id);
-
-    (async () => {
-      const db = getDb();
-      const rows = await db.getAllAsync<Record<string, unknown>>('SELECT * FROM categories');
-      const map = new Map<string, Category>();
-      for (const r of rows) {
-        const cat: Category = {
-          id: r.id as string,
-          name: r.name as string,
-          icon: r.icon as string,
-          color: r.color as string,
-          isDefault: (r.is_default as number) === 1,
-          budgetLimit: r.budget_limit as number | undefined,
-          budgetCurrency: r.budget_currency as string | undefined,
-        };
-        map.set(cat.id, cat);
-      }
-      setCategoryMap(map);
-    })();
   }, [id]);
 
   function handleArchive() {
@@ -99,8 +83,9 @@ export default function AccountDetailScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.navBar}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={styles.backBtn}>‹ Back</Text>
+          <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={22} color={colors.textSecondary} />
+            <Text style={styles.navBtnText}>Back</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.centered}>
@@ -113,7 +98,6 @@ export default function AccountDetailScreen() {
   const isOutstanding = account.type === 'credit' && account.balance > 0;
   const balanceColor = isOutstanding ? colors.creditOutstanding : colors.textPrimary;
 
-  // Build flat list items from grouped transactions
   const groups = groupByDay(transactions);
   const listItems: ListItem[] = [];
   for (const g of groups) {
@@ -125,22 +109,23 @@ export default function AccountDetailScreen() {
 
   const renderItem: ListRenderItem<ListItem> = ({ item }) => {
     if (item.kind === 'header') {
-      return (
-        <Text style={styles.dayHeader}>{formatDate(item.date + 'T00:00:00')}</Text>
-      );
+      return <Text style={styles.dayHeader}>{formatDate(item.date + 'T00:00:00')}</Text>;
     }
 
     const { tx } = item;
     const cat = categoryMap.get(tx.categoryId);
     const isDebit = tx.type === 'debit';
-    // For credit accounts, debit = spending (bad), credit = payment (good)
     const amountColor = isDebit ? colors.debit : colors.credit;
     const sign = isDebit ? '−' : '+';
 
     return (
       <View style={styles.txRow}>
         <View style={[styles.txIcon, { backgroundColor: (cat?.color ?? '#6b7280') + '22' }]}>
-          <Text style={styles.txIconText}>{cat?.icon ?? '📦'}</Text>
+          <Ionicons
+            name={(cat?.icon ?? 'ellipsis-horizontal-outline') as IoniconsName}
+            size={16}
+            color={cat?.color ?? '#6b7280'}
+          />
         </View>
         <View style={styles.txInfo}>
           <Text style={styles.txDesc}>{tx.description}</Text>
@@ -157,18 +142,20 @@ export default function AccountDetailScreen() {
     <View style={styles.container}>
       {/* Nav bar */}
       <View style={styles.navBar}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backBtn}>‹ Back</Text>
+        <TouchableOpacity style={styles.navBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={22} color={colors.textSecondary} />
+          <Text style={styles.navBtnText}>Back</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleArchive}>
-          <Text style={styles.archiveBtn}>Archive</Text>
+        <TouchableOpacity style={styles.archiveNavBtn} onPress={handleArchive}>
+          <Ionicons name="archive-outline" size={18} color={colors.debit} />
+          <Text style={styles.archiveBtnText}>Archive</Text>
         </TouchableOpacity>
       </View>
 
       {/* Account header */}
       <View style={[styles.accountHeader, { borderBottomColor: account.color + '44' }]}>
         <View style={[styles.accountIconBadge, { backgroundColor: account.color + '22' }]}>
-          <Text style={styles.accountIconText}>{ACCOUNT_TYPE_ICONS[account.type]}</Text>
+          <Ionicons name={account.icon as IoniconsName} size={28} color={account.color} />
         </View>
         <Text style={styles.accountName}>{account.name}</Text>
         <Text style={[styles.accountBalance, { color: balanceColor }]}>
@@ -178,7 +165,7 @@ export default function AccountDetailScreen() {
           <Text style={styles.outstandingLabel}>outstanding balance</Text>
         )}
         <Text style={styles.accountMeta}>
-          {account.type.replace('_', ' ')} · {account.currency}
+          {ACCOUNT_TYPE_LABELS[account.type]} · {account.currency}
         </Text>
       </View>
 
@@ -214,12 +201,22 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.sm,
     backgroundColor: colors.surface,
   },
-  backBtn: {
-    fontSize: fontSize.lg,
+  navBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  navBtnText: {
+    fontSize: fontSize.md,
     color: colors.textSecondary,
     fontWeight: fontWeight.medium,
   },
-  archiveBtn: {
+  archiveNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  archiveBtnText: {
     fontSize: fontSize.sm,
     color: colors.debit,
     fontWeight: fontWeight.medium,
@@ -248,9 +245,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  accountIconText: {
-    fontSize: 30,
-  },
   accountName: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
@@ -270,7 +264,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textMuted,
     marginTop: spacing.xs,
-    textTransform: 'capitalize',
   },
   txList: {
     paddingVertical: spacing.sm,
@@ -301,9 +294,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  txIconText: {
-    fontSize: 18,
   },
   txInfo: {
     flex: 1,
